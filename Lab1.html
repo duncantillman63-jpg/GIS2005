@@ -11,12 +11,6 @@
             margin: 0;
         }
 
-        img {
-            width: 800px;
-            height: 200px;
-            object-fit: cover;
-        }
-
         arcgis-map {
             width: 800px;
             height: 400px;
@@ -28,7 +22,9 @@
 
 <body>
 
-    <img src="banner.jpg" alt="Boulder Hiking Banner">
+    <img src="BoulderBanner.png"
+         alt="Boulder Hiking Banner"
+         style="width: 800px; height: 160px; object-fit: contain; display: block;">
 
     <arcgis-map
         item-id="e80639262aa645eb9b67afbba1dd996a"
@@ -42,13 +38,13 @@
     <h2>Boulder Hiking Map</h2>
 
     <p>
-        This map shows hikinginformation in Boulder, Colorado.
+        This web map shows hiking information in Boulder, Colorado.
         The map includes trails, trailheads, and buildings to help users explore
         hiking opportunities around the area.
     </p>
 
     <p>
-        I also added a layer showing parks managed by the City of Boulder.
+        I also added a layer showing parks managed by the city.
         This layer helps provide more context to the hiking map by showing
         where city managed parks are located in relation to the trails and trailheads.
     </p>
