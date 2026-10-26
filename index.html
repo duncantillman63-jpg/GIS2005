@@ -1,0 +1,76 @@
+
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+
+    <title>Lab 3 - Denver Food Analysis</title>
+
+    <link rel="stylesheet" href="style.css">
+
+    <!-- ArcGIS Maps SDK -->
+    <script type="module" src="https://js.arcgis.com/5.1/"></script>
+</head>
+
+<body>
+
+    <div class="container">
+
+        <!-- Header with Denver Skyline -->
+        <header>
+            <img src="Denver_Skyline.jpg"
+                 style="display: block; margin: 0 auto;"
+                 width="700"
+                 height="80"
+                 alt="Denver Skyline">
+        </header>
+
+        <!-- Left Sidebar -->
+        <aside class="sidebar-l">
+
+            <h3>Layer Visibility</h3>
+
+            <div class="sidebar-l-top">
+                <arcgis-layer-list
+                    reference-element="myMap">
+                </arcgis-layer-list>
+            </div>
+
+            <h3>Legend</h3>
+
+            <div class="sidebar-l-bottom">
+                <arcgis-legend
+                    reference-element="myMap">
+                </arcgis-legend>
+            </div>
+
+        </aside>
+
+        <!-- Main Map -->
+        <main>
+
+            <arcgis-map
+                item-id="72a77a2b4cb34da5af2f597d852e6fda"
+                id="myMap"
+                center="-104.95,39.75"
+                zoom="14">
+
+                <arcgis-zoom slot="top-left"></arcgis-zoom>
+
+            </arcgis-map>
+
+        </main>
+
+        <!-- Footer -->
+        <footer>
+            <p>
+                Grocery icon from www.flaticon.com licensed by CC 3.0
+            </p>
+        </footer>
+
+    </div>
+
+</body>
+</html>
