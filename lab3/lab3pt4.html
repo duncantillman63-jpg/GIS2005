@@ -1,0 +1,407 @@
+
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport"
+          content="width=device-width, initial-scale=1.0">
+
+    <title>Lab 3 Part 4 - Denver Food Analysis</title>
+
+    <link rel="stylesheet" href="style.css">
+
+    <!-- ArcGIS Maps SDK -->
+    <script type="module"
+            src="https://js.arcgis.com/5.1/"></script>
+</head>
+
+<body>
+
+<div class="container">
+
+    <!-- Denver Skyline -->
+    <header>
+        <img src="Denver_Skyline.jpg"
+             style="display: block; margin: 0 auto;"
+             width="700"
+             height="125"
+             alt="Denver Skyline">
+    </header>
+
+    <!-- Left Sidebar -->
+    <aside class="sidebar-l">
+
+        <h3>Layer Visibility</h3>
+
+        <div class="sidebar-l-top">
+            <arcgis-layer-list
+                reference-element="myMap">
+            </arcgis-layer-list>
+        </div>
+
+        <h3>Legend</h3>
+
+        <div class="sidebar-l-bottom">
+            <arcgis-legend
+                reference-element="myMap">
+            </arcgis-legend>
+        </div>
+
+        <h3>Spatial Query Results</h3>
+
+        <p>
+            Click anywhere on the map to find
+            grocery stores within the current
+            map extent.
+        </p>
+
+        <p id="results">
+            No query performed yet.
+        </p>
+
+    </aside>
+
+    <!-- Map -->
+    <main>
+
+        <arcgis-map
+            item-id="72a77a2b4cb34da5af2f597d852e6fda"
+            center="-104.95,39.75"
+            zoom="14"
+            id="myMap"
+            popup-disabled>
+
+            <arcgis-zoom slot="top-left">
+            </arcgis-zoom>
+
+            <!-- Custom Popup -->
+            <arcgis-popup slot="popup">
+            </arcgis-popup>
+
+        </arcgis-map>
+
+    </main>
+
+    <!-- JavaScript -->
+    <script type="module">
+
+        // Import ArcGIS libraries
+        const [FeatureLayer, Graphic] =
+            await $arcgis.import([
+                "@arcgis/core/layers/FeatureLayer.js",
+                "@arcgis/core/Graphic.js"
+            ]);
+
+        // Reference the map
+        const viewElement =
+            document.querySelector("arcgis-map");
+
+        // Reference the popup
+        const popupComponent =
+            document.querySelector("arcgis-popup");
+
+        // Wait for the map to initialize
+        await viewElement.viewOnReady();
+
+        // Wait for the popup component to initialize
+        await popupComponent.componentOnReady?.();
+
+        const map = viewElement.map;
+        const view = viewElement.view;
+
+        const resultsElement =
+            document.getElementById("results");
+
+        // Find the Denver Food Stores layer
+        const featureLayer = map.allLayers.find(layer =>
+            layer.type === "feature" &&
+            /food.?stores|grocery/i.test(layer.title || "")
+        );
+
+        if (!featureLayer) {
+
+            console.error("Food stores layer not found.");
+
+            resultsElement.textContent =
+                "Food stores layer not found.";
+
+        } else {
+
+            await featureLayer.load();
+
+            console.log(
+                "Food stores layer found:",
+                featureLayer.title
+            );
+
+            // Find the store name field
+            const nameField = featureLayer.fields.find(field =>
+                /store.?name|business.?name|^name$/i.test(field.name)
+            ) || featureLayer.fields.find(field =>
+                field.type === "string" &&
+                /name/i.test(field.name)
+            );
+
+            console.log(
+                "Store name field:",
+                nameField ? nameField.name : "Not found"
+            );
+
+            // Red highlight symbols
+            const highlightRenderer = {
+                type: "simple",
+                symbol: {
+                    type: "simple-marker",
+                    color: "red",
+                    size: "10px",
+                    outline: {
+                        color: "white",
+                        width: 1
+                    }
+                }
+            };
+
+            // Client-side layer for highlighted stores
+            const graphicsLayer = new FeatureLayer({
+
+                title: "Highlighted Stores",
+
+                source: [],
+
+                objectIdField: "OBJECTID",
+
+                fields: [
+                    {
+                        name: "OBJECTID",
+                        type: "oid"
+                    }
+                ],
+
+                geometryType: "point",
+
+                spatialReference: view.spatialReference,
+
+                renderer: highlightRenderer
+
+            });
+
+            map.add(graphicsLayer);
+
+            console.log("Highlighted Stores layer created.");
+
+            // Prevent overlapping queries
+            let queryRunning = false;
+
+            // Escape text before putting it in HTML
+            function escapeHtml(value) {
+                return String(value)
+                    .replace(/&/g, "&amp;")
+                    .replace(/</g, "&lt;")
+                    .replace(/>/g, "&gt;")
+                    .replace(/"/g, "&quot;")
+                    .replace(/'/g, "&#39;");
+            }
+
+            // Run query when map is clicked
+            viewElement.addEventListener(
+                "arcgisViewClick",
+                async (event) => {
+
+                    if (queryRunning) return;
+
+                    queryRunning = true;
+
+                    console.log("MAP CLICK DETECTED");
+
+                    // Get clicked location
+                    const { mapPoint } = event.detail;
+
+                    resultsElement.textContent =
+                        "Searching for grocery stores...";
+
+                    try {
+
+                        // Get current map extent
+                        const queryExtent = view.extent.clone();
+
+                        // Create spatial query
+                        const query = featureLayer.createQuery();
+
+                        query.geometry = queryExtent;
+
+                        query.spatialRelationship =
+                            "intersects";
+
+                        query.returnGeometry = true;
+
+                        query.outFields = ["*"];
+
+                        query.outSpatialReference =
+                            view.spatialReference;
+
+                        // Execute query
+                        const results =
+                            await featureLayer.queryFeatures(query);
+
+                        const count = results.features.length;
+
+                        console.log(
+                            "Found " + count +
+                            " stores within the bounding box."
+                        );
+
+                        // Remove old highlighted stores
+                        const previousIds =
+                            await graphicsLayer.queryObjectIds();
+
+                        if (previousIds.length > 0) {
+
+                            await graphicsLayer.applyEdits({
+                                deleteFeatures: previousIds.map(id => ({
+                                    objectId: id
+                                }))
+                            });
+
+                        }
+
+                        // Create new red highlighted points
+                        const newGraphics = [];
+
+                        // Store the names for the popup
+                        const names = [];
+
+                        results.features.forEach(
+                            (feature, index) => {
+
+                                const attributes =
+                                    feature.attributes;
+
+                                const featureName = nameField
+                                    ? attributes[nameField.name]
+                                    : "Unknown Store";
+
+                                names.push(
+                                    featureName || "Unknown Store"
+                                );
+
+                                console.log(
+                                    "Feature name: " + featureName
+                                );
+
+                                const graphic = new Graphic({
+
+                                    geometry: feature.geometry,
+
+                                    attributes: {
+                                        OBJECTID: index + 1
+                                    }
+
+                                });
+
+                                newGraphics.push(graphic);
+
+                            }
+                        );
+
+                        // Highlight all stores
+                        if (newGraphics.length > 0) {
+
+                            await graphicsLayer.applyEdits({
+                                addFeatures: newGraphics
+                            });
+
+                        }
+
+                        // Update sidebar
+                        resultsElement.textContent =
+                            "Found " + count +
+                            " grocery stores within the map extent.";
+
+                        // Build popup content
+                        let popupContent = "";
+
+                        popupContent +=
+                            "<p>Found " + count +
+                            " grocery stores within the current map extent.</p>";
+
+                        if (count > 0) {
+
+                            popupContent +=
+                                "<strong>Store Names:</strong>";
+
+                            popupContent +=
+                                "<div style='max-height:220px;overflow-y:auto;'>";
+
+                            popupContent += "<ol>";
+
+                            names.forEach(name => {
+
+                                popupContent +=
+                                    "<li>" +
+                                    escapeHtml(name) +
+                                    "</li>";
+
+                            });
+
+                            popupContent += "</ol></div>";
+
+                        } else {
+
+                            popupContent +=
+                                "<p>No grocery stores were found.</p>";
+
+                        }
+
+                        // Set popup location
+                        popupComponent.location = mapPoint;
+
+                        // Set popup heading
+                        popupComponent.heading =
+                            "Grocery Stores in Map Extent";
+
+                        // Set popup content
+                        popupComponent.content = popupContent;
+
+                        // Open popup
+                        popupComponent.open = true;
+
+                        console.log(
+                            "Names of features found:",
+                            names.join(", ")
+                        );
+
+                        console.log("Spatial query complete.");
+
+                    } catch (error) {
+
+                        console.error("Query failed:", error);
+
+                        resultsElement.textContent =
+                            "Query failed. Check the Console.";
+
+                    } finally {
+
+                        queryRunning = false;
+
+                    }
+
+                }
+            );
+
+        }
+
+    </script>
+
+    <!-- Footer -->
+    <footer>
+        <p>
+            Grocery icon from www.flaticon.com
+            licensed by CC 3.0
+        </p>
+    </footer>
+
+</div>
+
+</body>
+</html>
